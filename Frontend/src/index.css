@@ -1,0 +1,47 @@
+@import "tailwindcss";
+@import "aos/dist/aos.css";
+
+/* 🔹 COMPONENT CLASSES */
+@layer components {
+  .input {
+    @apply w-full px-4 py-2 border rounded-md 
+           focus:outline-none focus:ring-2 focus:ring-green-500;
+  }
+}
+
+/* 🔹 UTILITY ANIMATIONS */
+@layer utilities {
+  .animate-blob {
+    animation: blob 7s infinite;
+  }
+
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+
+  @keyframes blob {
+    0%, 100% {
+      transform: translate(0px, 0px) scale(1);
+    }
+    33% {
+      transform: translate(30px, -50px) scale(1.1);
+    }
+    66% {
+      transform: translate(-20px, 20px) scale(0.9);
+    }
+  }
+}
+
+/* 🔹 GLOBAL PAGE BASE */
+html, body, #root {
+  min-height: 100%;
+  height: auto;
+  overflow-x: hidden;
+
+  /* ✅ GLOBAL BACKGROUND FIX */
+  background: linear-gradient(to bottom right, #dcfce7, #bbf7d0);
+}
