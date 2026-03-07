@@ -5,12 +5,12 @@
 // =============================================
 // CHANGE THESE TO YOUR VALUES
 // =============================================
-const char* WIFI_SSID     = "YOUR_WIFI_NAME";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* WIFI_SSID     = "OnePlus Nord2 5G";
+const char* WIFI_PASSWORD = "helloworld2";
 
 // Raspberry Pi's IP on your local network
 // Find it by running: hostname -I   on the Pi
-const char* RPI_ENDPOINT  = "http://192.168.1.100:5002/api/sensor-data";
+const char* RPI_ENDPOINT = "http://192.168.60.234:5002/api/sensor-data";
 
 // =============================================
 // SENSOR PINS — match your wiring
