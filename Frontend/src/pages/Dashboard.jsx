@@ -6,10 +6,11 @@ import {
   FiSettings, FiCalendar, FiLoader,
   FiUpload, FiCamera, FiRefreshCw,
   FiClipboard, FiShield, FiActivity,
-  FiCheckCircle, FiInfo
+  FiCheckCircle, FiInfo, FiWifi, FiWifiOff
 } from 'react-icons/fi';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
+import { useSensorSocket } from '../hooks/useSensorSocket';
 
 let dashboardCache = {
   data: null,
@@ -27,12 +28,29 @@ const Dashboard = () => {
   const [apiData, setApiData] = useState(dashboardCache.data);
   const [isFetching, setIsFetching] = useState(false);
 
+  // 🆕 Real-time sensor data from Socket.IO
+  const { sensorData, isConnected, lastUpdated } = useSensorSocket();
+
   useEffect(() => {
     const savedAnalysis = sessionStorage.getItem("lastLeafAnalysis");
     if (savedAnalysis) {
       setAnalysisResult(JSON.parse(savedAnalysis));
     }
   }, []);
+
+  // 🆕 Merge live sensor data into apiData when it arrives
+  useEffect(() => {
+    if (sensorData) {
+      setApiData(prev => ({
+        ...prev,
+        soil: sensorData.soil,
+        temperature: sensorData.temperature,
+        humidity: sensorData.humidity,
+        solar_output: sensorData.solar_output,
+        light: sensorData.light_raw,
+      }));
+    }
+  }, [sensorData]);
 
   const soilData = useMemo(() => ({
     moisture: apiData?.soil || 0,
@@ -211,7 +229,7 @@ const Dashboard = () => {
     setPreviewImage(null);
     setAnalysisResult(null);
 
-    sessionStorage.removeItem("lastLeafAnalysis"); // 👈 ADD THIS
+    sessionStorage.removeItem("lastLeafAnalysis");
     
     setApiData(prev => ({
       ...prev,
@@ -250,10 +268,36 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12">
-        {/* Header */}
+        {/* 🆕 Header with Live Badge */}
         <div className="mb-8 border-b border-green-200 pb-6" data-aos="fade-up">
-          <h1 className="text-3xl font-bold text-green-800 mb-2">Smart Agro-Solar Dashboard</h1>
-          <p className="text-green-600">Monitoring 3.4M data points for recyclable energy optimization</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-green-800 mb-2">Smart Agro-Solar Dashboard</h1>
+              <p className="text-green-600">Real-time monitoring powered by IoT sensors</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              {isConnected ? (
+                <span className="flex items-center px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium border border-green-300">
+                  <FiWifi className="mr-1.5" />
+                  <span className="relative flex h-2 w-2 mr-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                  Live
+                </span>
+              ) : (
+                <span className="flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-sm font-medium border border-red-300">
+                  <FiWifiOff className="mr-1.5" />
+                  Offline
+                </span>
+              )}
+              {lastUpdated && (
+                <span className="text-xs text-gray-500">
+                  Updated: {lastUpdated}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -486,7 +530,7 @@ const Dashboard = () => {
             <p className="text-xs text-gray-500">Tip: You can also paste (Ctrl+V) an image directly</p>
           </div>
 
-          {/* ========== DISEASE RECOMMENDATION CARD (UPDATED) ========== */}
+          {/* ========== DISEASE RECOMMENDATION CARD ========== */}
           <div className="bg-white rounded-xl shadow-sm border border-green-100 p-6 hover:shadow-md transition-all lg:col-span-2" data-aos="fade-up" data-aos-delay="500">
             <h2 className="text-xl font-semibold flex items-center text-green-700 mb-6">
               <FiClipboard className="text-purple-600 mr-2" />
@@ -592,13 +636,54 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Data Management */}
+          {/* 🆕 Sensor Status Card (replaces old Data Management) */}
           <div className="bg-white rounded-xl shadow-sm border border-green-100 p-6 hover:shadow-md transition-all" data-aos="fade-up" data-aos-delay="600">
             <h2 className="text-xl font-semibold flex items-center text-green-700 mb-6">
-              <FiBarChart2 className="text-purple-600 mr-2" />
-              Data Management
+              {isConnected ? (
+                <FiWifi className="text-green-600 mr-2" />
+              ) : (
+                <FiWifiOff className="text-red-500 mr-2" />
+              )}
+              Sensor Status
             </h2>
-            <div className="flex flex-col items-center justify-center p-4">
+            <div className="space-y-4">
+              {/* Connection Status */}
+              <div className={`p-4 rounded-lg border ${isConnected ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">Socket.IO</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${isConnected ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                    {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Live Readings */}
+              {sensorData ? (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm text-gray-600">🌡️ Temperature</span>
+                    <span className="font-bold text-green-700">{sensorData.temperature}°C</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm text-gray-600">💧 Humidity</span>
+                    <span className="font-bold text-green-700">{sensorData.humidity}%</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm text-gray-600">🌱 Soil Moisture</span>
+                    <span className="font-bold text-green-700">{sensorData.soil}%</span>
+                  </div>
+                  {lastUpdated && (
+                    <p className="text-xs text-gray-400 text-center mt-2">Last update: {lastUpdated}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-400">Waiting for sensor data...</p>
+                  <p className="text-xs text-gray-300 mt-1">Make sure ESP32 & Pi are running</p>
+                </div>
+              )}
+
+              {/* Manual Refresh Button */}
               <button
                 onClick={fetchData}
                 disabled={isFetching}
@@ -607,11 +692,8 @@ const Dashboard = () => {
                 } text-white transition-colors`}
               >
                 <FiRefreshCw className={`mr-2 ${isFetching ? 'animate-spin' : ''}`} />
-                {isFetching ? 'Fetching Data...' : 'Fetch Data'}
+                {isFetching ? 'Fetching...' : 'Refresh ML Analysis'}
               </button>
-              <p className="text-sm text-gray-500 mt-3 text-center">
-                Click to fetch and update your latest agricultural data
-              </p>
             </div>
           </div>
         </div>
