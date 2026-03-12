@@ -793,6 +793,8 @@ try:
     if os.path.exists(MODEL_PATH):
         model = tf.keras.models.load_model(MODEL_PATH)
         print("✅ Model loaded successfully!")
+        print(f"📐 Model INPUT shape: {model.input_shape}")
+        print(f"📊 Model OUTPUT shape: {model.output_shape}")
 
         assert model.output_shape[-1] == len(CLASS_NAMES), \
             f"Model outputs {model.output_shape[-1]} classes, but labels = {len(CLASS_NAMES)}"
@@ -884,9 +886,11 @@ def serve_uploaded_file(filename):
 @app.route('/api/leaf-detect', methods=['POST'])
 def detect_leaf_disease():
     try:
+        # 1. Model safety check
         if model is None:
             return jsonify({'error': 'Leaf model not loaded'}), 500
 
+        # 2. File validation
         if 'image' not in request.files:
             return jsonify({'error': 'Image file missing'}), 400
 
@@ -894,21 +898,33 @@ def detect_leaf_disease():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
 
+        # 3. Read image in memory
         image_bytes = file.read()
         processed_image = preprocess_leaf_image(image_bytes)
 
+        # 4. Predict
         probabilities = model.predict(processed_image)[0]
+
+        # 🆕 Print top 5 predictions for debugging
+        top5_indices = np.argsort(probabilities)[-5:][::-1]
+        print("🔍 Top 5 Predictions:")
+        for idx in top5_indices:
+            print(f"   {idx}: {CLASS_NAMES[idx]} → {probabilities[idx]*100:.1f}%")
+
         class_index = int(np.argmax(probabilities))
         confidence = float(probabilities[class_index])
 
+        # 5. Class safety
         if class_index >= len(CLASS_NAMES):
             predicted_class = "Unknown"
         else:
             predicted_class = CLASS_NAMES[class_index]
 
+        # 6. Disease risk
         is_healthy = "healthy" in predicted_class.lower()
         disease_risk = 0 if is_healthy else int(confidence * 100)
 
+        # 7. Get recommendation — FIXED!
         rec = get_recommendation(predicted_class)
 
         return jsonify({
@@ -916,7 +932,11 @@ def detect_leaf_disease():
             "confidence": confidence,
             "diseaseRisk": disease_risk,
             "message": "Leaf analysis successful",
-            "recommendation": rec
+            "recommendation": {
+                "description": rec["description"],
+                "treatment": rec["treatment"],
+                "prevention": rec["prevention"]
+            }
         }), 200
 
     except Exception as e:
